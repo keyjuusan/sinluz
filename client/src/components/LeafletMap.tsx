@@ -3,7 +3,7 @@ import type { PropsWithChildren } from "react";
 
 export default function LeafletMap({children}:PropsWithChildren) {
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
       <MapContainer
         center={[7.671410908357838, -426.35180664062506]}
         zoom={7}
@@ -19,6 +19,7 @@ export default function LeafletMap({children}:PropsWithChildren) {
         {children}
 
       </MapContainer>
+      <button className="absolute top-0 right-0 bg-amber-50">Tocame</button>
     </div>
   );
 }
