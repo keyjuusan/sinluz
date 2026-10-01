@@ -1,17 +1,9 @@
 import { useState, type ComponentProps } from "react";
 import { Ripple } from "./loading-ui/ripple";
-import L, { Map } from "leaflet";
-import optionsHeatLayer from "@/lib/leaflet/optionsHeatLayer";
-import { miApi } from "@/lib/axios/api";
-
-interface Reporte {
-  latitud: number;
-  longitud: number;
-  idUser: number;
-}
+import type { ReporteType } from "@/types";
 
 interface Props extends ComponentProps<"button"> {
-  reporte: Reporte;
+  reporte: ReporteType;
 }
 
 export default function BtnReportar({
@@ -22,7 +14,7 @@ export default function BtnReportar({
 }: Props) {
   const [loading, setLoading] = useState(false);
 
-  function reportarApagon(datosReporte: Reporte) {
+  function reportarApagon(datosReporte: ReporteType) {
     setLoading(true);
 
     const simularPeticion = new Promise((resolve, reject) => {
