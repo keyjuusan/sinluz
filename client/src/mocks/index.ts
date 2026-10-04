@@ -1,5 +1,5 @@
 import { generarReportes } from "./generators/generarReportes";
 
-const mockReportes = generarReportes(10)
+const mockReportes = generarReportes(200)
 
 export{mockReportes}
