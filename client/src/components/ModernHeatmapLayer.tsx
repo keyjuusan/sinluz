@@ -13,10 +13,12 @@ export const ModernHeatmapLayer = ({ points }) => {
 
     // MEDIDA DE PRIVACIDAD: Ofuscamos las coordenadas sumando un ruido de ~500 metros
     const factorRuido = 0.005;
-    const puntosSeguros = points.map(([lat, lng]) => {
+    const puntosSeguros = points.map(([lat, lng, intensidad]) => {
       const latConRuido = lat + (Math.random() - 0.5) * factorRuido;
       const lngConRuido = lng + (Math.random() - 0.5) * factorRuido;
-      return [latConRuido, lngConRuido];
+
+      // Pasamos la intensidad (0.16 a 1.0) calculada previamente en base a las horas sin luz
+      return [latConRuido, lngConRuido, intensidad || 1];
     });
 
     // Creamos la capa de calor directamente en la instancia de Leaflet
