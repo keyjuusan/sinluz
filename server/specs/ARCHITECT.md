@@ -5,9 +5,9 @@
 
 ## 2. Stack Tecnológico Autorizado
 El agente de IA no debe utilizar herramientas, frameworks o librerías fuera de este listado:
-- **Backend / API:** Rust, axum, tokio, serde / serde_json. Entry point: `server/src/main.rs`.
+- **Backend / API:** Rust, axum (features `["ws"]` para WebSockets), tokio, serde / serde_json. Entry point: `server/src/main.rs`.
 - **Base de Datos / Persistencia:** PostgreSQL con SQLx, ya integrado en `Cargo.toml` por la spec `01_registrar_reporte` (approved). Features activas: `postgres`, `runtime-tokio-rustls`, `migrate`, `chrono`. Soporte de fechas con `chrono` (decodificación de `TIMESTAMPTZ`) y carga de `.env` con `dotenvy`. Migraciones en `server/migrations/`, aplicadas en el arranque con `sqlx::migrate!`.
-- **Tests de integración:** `tower` (oneshot sobre el Router) y `http-body-util` como `[dev-dependencies]`.
+- **Tests de integración:** `tower` (oneshot sobre el Router), `http-body-util` y `tokio-tungstenite` (cliente WebSocket e2e, sin features TLS) como `[dev-dependencies]`.
 - **Frontend / UI:** React, Vite, TypeScript, Tailwind CSS, Leaflet + leaflet.heat, vite-plugin-pwa, lucide-react.
 - **Gestión de Estado / Caché:** sin librería de estado global definida todavía; preferir `useReducer`/hooks nativos de React hasta que una spec justifique otra.
 - **Datos de prueba:** @faker-js/faker ya está instalado en `client/` para generar datos sintéticos en desarrollo.
@@ -23,7 +23,8 @@ sinluz/
 │   │   ├── main.rs             # Arranque del servidor: config, migraciones y composición del Router
 │   │   ├── config.rs           # Carga de .env (dotenvy) y DATABASE_URL
 │   │   ├── modules/            # Módulos encapsulados por dominio de negocio
-│   │   │   └── reportes/       # routes → application → domain → infra
+│   │   │   ├── reportes/       # routes → application → domain → infra
+│   │   │   └── actividad/      # WebSocket de actividad en tiempo real (domain → infra → application → routes)
 │   │   └── shared/             # (reservado) tipos y utilidades reutilizables
 │   ├── migrations/             # Migraciones SQLx (0001_crear_reportes.sql)
 │   ├── specs/
@@ -57,5 +58,6 @@ Directrices técnicas de alto nivel para mantener la consistencia en todo el rep
 - [x] `specs/GLOSSARY.md` con la terminología de negocio en español.
 - [ ] Autenticación y autorización de usuarios.
 - [x] Feed de datos para el heatmap del cliente — spec `approved/02_consultar_reportes.md`: `GET /api/v1/reportes` con ventana temporal, bbox opcional y paginación `limit`/`offset`.
+- [x] Actividad en tiempo real — spec `approved/03_websocket_actividad.md`: `GET /api/v1/actividad/ws` emite `reporte_creado` al crear un reporte; 100 conexiones máx. (429), keepalive ping 30 s / inactividad 60 s, sin `id_usuario`.
 - [ ] Scaffolding del cliente (no existe `package.json`).
 - [ ] Offline de la PWA (registro de reportes sin conexión).
