@@ -8,3 +8,6 @@ Terminología acordada para nombrar variables, funciones, rutas y tablas de base
 - **creado:** instante (UTC, RFC 3339) en el que el servidor registra el reporte.
 - **horas_duracion:** estimación aproximada, en horas enteras (0–168), de cuánto suelen durar los cortes en la zona según la experiencia del usuario. `NULL` = no lo sabe.
 - **cooldown:** medida anti-spam. Un mismo `id_usuario` no puede reportar la misma ubicación (±~100 m) más de una vez cada 15 minutos.
+- **feed / consulta de reportes:** lectura de reportes registrados que alimenta el heatmap del cliente. Expuesta por `GET /api/v1/reportes`.
+- **ventana temporal:** rango `desde`–`hasta` (RFC 3339) que acota la consulta del feed por el campo `creado`.
+- **bbox:** rectángulo geográfico de filtrado definido por `min_lat`, `max_lat`, `min_lng`, `max_lng` (WGS84), opcional en la consulta del feed.

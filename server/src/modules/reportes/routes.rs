@@ -1,22 +1,29 @@
 use axum::{
     Json, Router,
-    extract::{State, rejection::JsonRejection},
+    extract::{
+        Query, State,
+        rejection::{JsonRejection, QueryRejection},
+    },
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::post,
+    routing::get,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::PgPool;
 
-use crate::modules::reportes::application::{ErrorRegistro, registrar_reporte};
-use crate::modules::reportes::domain::ErrorValidacion;
+use crate::modules::reportes::application::{
+    ErrorConsulta, ErrorRegistro, ResultadoConsulta, consultar_reportes, registrar_reporte,
+};
+use crate::modules::reportes::domain::{
+    ErrorValidacion, ErrorValidacionConsulta, SolicitudConsultarReportes,
+};
 use crate::modules::reportes::infra::PostgresRepositorioReportes;
 
 pub fn router(pool: PgPool) -> Router {
     let repositorio = PostgresRepositorioReportes::new(pool);
     Router::new()
-        .route("/api/v1/reportes", post(crear_reporte))
+        .route("/api/v1/reportes", get(listar_reportes).post(crear_reporte))
         .with_state(repositorio)
 }
 
@@ -60,10 +67,25 @@ pub async fn crear_reporte(
     ))
 }
 
+pub async fn listar_reportes(
+    State(repositorio): State<PostgresRepositorioReportes>,
+    query: Result<Query<SolicitudConsultarReportes>, QueryRejection>,
+) -> Result<Json<ResultadoConsulta>, ErrorHttp> {
+    let Query(solicitud) = query.map_err(ErrorHttp::ConsultaInvalida)?;
+
+    let resultado = consultar_reportes(&repositorio, &solicitud)
+        .await
+        .map_err(ErrorHttp::desde_consulta)?;
+
+    Ok(Json(resultado))
+}
+
 #[derive(Debug)]
 pub enum ErrorHttp {
     SolicitudInvalida(JsonRejection),
+    ConsultaInvalida(QueryRejection),
     Validacion(ErrorValidacion),
+    Consulta(ErrorValidacionConsulta),
     CooldownActivo,
     Interno,
 }
@@ -76,6 +98,13 @@ impl ErrorHttp {
             ErrorRegistro::Persistencia(_) => ErrorHttp::Interno,
         }
     }
+
+    fn desde_consulta(error: ErrorConsulta) -> Self {
+        match error {
+            ErrorConsulta::Validacion(validacion) => ErrorHttp::Consulta(validacion),
+            ErrorConsulta::Persistencia(_) => ErrorHttp::Interno,
+        }
+    }
 }
 
 impl IntoResponse for ErrorHttp {
@@ -85,7 +114,12 @@ impl IntoResponse for ErrorHttp {
                 StatusCode::BAD_REQUEST,
                 format!("cuerpo de solicitud inválido: {rechazo}"),
             ),
+            ErrorHttp::ConsultaInvalida(rechazo) => (
+                StatusCode::BAD_REQUEST,
+                format!("consulta inválida: {rechazo}"),
+            ),
             ErrorHttp::Validacion(error) => (StatusCode::BAD_REQUEST, error.to_string()),
+            ErrorHttp::Consulta(error) => (StatusCode::BAD_REQUEST, error.to_string()),
             ErrorHttp::CooldownActivo => (
                 StatusCode::TOO_MANY_REQUESTS,
                 "cooldown activo: espera 15 minutos antes de reportar la misma ubicación"

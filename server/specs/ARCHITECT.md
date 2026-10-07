@@ -56,6 +56,6 @@ Directrices técnicas de alto nivel para mantener la consistencia en todo el rep
 - [x] Persistencia PostgreSQL/SQLx con migraciones y entorno de desarrollo (docker-compose).
 - [x] `specs/GLOSSARY.md` con la terminología de negocio en español.
 - [ ] Autenticación y autorización de usuarios.
-- [ ] Feed de datos para el heatmap del cliente.
+- [x] Feed de datos para el heatmap del cliente — spec `approved/02_consultar_reportes.md`: `GET /api/v1/reportes` con ventana temporal, bbox opcional y paginación `limit`/`offset`.
 - [ ] Scaffolding del cliente (no existe `package.json`).
 - [ ] Offline de la PWA (registro de reportes sin conexión).

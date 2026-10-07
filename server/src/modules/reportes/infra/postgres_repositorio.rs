@@ -1,9 +1,11 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
-use crate::modules::reportes::domain::Reporte;
+use crate::modules::reportes::domain::{FiltrosConsultaReporte, Reporte, ReporteConsulta};
 
 pub const UMBRAL_COINCIDENCIA_GRADOS: f64 = 0.001;
+
+type FilaReporte = (String, f64, f64, DateTime<Utc>, Option<i16>);
 
 #[derive(Clone)]
 pub struct PostgresRepositorioReportes {
@@ -68,5 +70,71 @@ impl PostgresRepositorioReportes {
             creado,
             horas_duracion,
         })
+    }
+
+    pub async fn listar_reportes(
+        &self,
+        filtros: &FiltrosConsultaReporte,
+    ) -> Result<Vec<ReporteConsulta>, sqlx::Error> {
+        let bbox = filtros.bbox.as_ref();
+        let filas: Vec<FilaReporte> = sqlx::query_as(
+            "SELECT id::text, lat, lng, creado, horas_duracion
+             FROM reportes
+             WHERE creado >= $1
+               AND creado < $2
+               AND ($3::float8 IS NULL OR lat >= $3)
+               AND ($4::float8 IS NULL OR lat <= $4)
+               AND ($5::float8 IS NULL OR lng >= $5)
+               AND ($6::float8 IS NULL OR lng <= $6)
+             ORDER BY creado DESC, id DESC
+             LIMIT $7 OFFSET $8",
+        )
+        .bind(filtros.desde)
+        .bind(filtros.hasta)
+        .bind(bbox.map(|b| b.min_lat))
+        .bind(bbox.map(|b| b.max_lat))
+        .bind(bbox.map(|b| b.min_lng))
+        .bind(bbox.map(|b| b.max_lng))
+        .bind(filtros.limit as i64)
+        .bind(filtros.offset as i64)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(filas
+            .into_iter()
+            .map(|(id, lat, lng, creado, horas_duracion)| ReporteConsulta {
+                id,
+                lat,
+                lng,
+                creado,
+                horas_duracion: horas_duracion.map(|horas| horas as u16),
+            })
+            .collect())
+    }
+
+    pub async fn contar_reportes(
+        &self,
+        filtros: &FiltrosConsultaReporte,
+    ) -> Result<i64, sqlx::Error> {
+        let bbox = filtros.bbox.as_ref();
+        let total: i64 = sqlx::query_scalar(
+            "SELECT count(*)
+             FROM reportes
+             WHERE creado >= $1
+               AND creado < $2
+               AND ($3::float8 IS NULL OR lat >= $3)
+               AND ($4::float8 IS NULL OR lat <= $4)
+               AND ($5::float8 IS NULL OR lng >= $5)
+               AND ($6::float8 IS NULL OR lng <= $6)",
+        )
+        .bind(filtros.desde)
+        .bind(filtros.hasta)
+        .bind(bbox.map(|b| b.min_lat))
+        .bind(bbox.map(|b| b.max_lat))
+        .bind(bbox.map(|b| b.min_lng))
+        .bind(bbox.map(|b| b.max_lng))
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(total)
     }
 }
