@@ -11,3 +11,7 @@ Terminología acordada para nombrar variables, funciones, rutas y tablas de base
 - **feed / consulta de reportes:** lectura de reportes registrados que alimenta el heatmap del cliente. Expuesta por `GET /api/v1/reportes`.
 - **ventana temporal:** rango `desde`–`hasta` (RFC 3339) que acota la consulta del feed por el campo `creado`.
 - **bbox:** rectángulo geográfico de filtrado definido por `min_lat`, `max_lat`, `min_lng`, `max_lng` (WGS84), opcional en la consulta del feed.
+- **actividad:** reflejo en tiempo real de la actividad de otros usuarios (hoy: reportes recién registrados) hacia los clientes conectados. Expuesta por el canal WebSocket `GET /api/v1/actividad/ws`.
+- **evento de actividad:** mensaje JSON emitido por el servidor por cada actividad relevante. Clave `tipo` (discriminador, p. ej. `reporte_creado`) + datos del hecho; nunca incluye `id_usuario`.
+- **canal de actividad:** canal `broadcast` interno (tokio) que distribuye los eventos de actividad a todas las conexiones WS activas, sin filtro geográfico (global). El filtro de mapa lo hace el cliente.
+- **conexión de actividad:** sesión WebSocket de un cliente suscrito al canal. Límite 100 concurrentes; el servidor hace ping cada 30 s y cierra a los 60 s sin actividad. Canal de solo lectura: el cliente no envía mensajes de negocio.
