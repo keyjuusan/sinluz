@@ -132,3 +132,135 @@ let app = Router::new()
 - **Reconexión con backoff:** ante `429` (límite de 100 conexiones alcanzado, body `{"error": "limite de conexiones..."}`), cierre por inactividad (60 s) o caída de red, reconectar con backoff exponencial + jitter y techo razonable (p. ej. 1 s → 2 s → 4 s … máx. 60 s).
 - **Keepalive:** el servidor envía `Ping` cada 30 s; el `WebSocket` del navegador responde `Pong` automáticamente — no hace falta lógica propia para eso. **No enviar mensajes** de aplicación: el canal es de solo lectura y los `Text`/`Binary` entrantes se descartan en el servidor.
 - **Una sola conexión por app:** compartirla entre componentes (contexto de la SPA) y cerrarla al desmontar; en la PWA, cerrar al pasar a `offline` y reabrir al recuperar la red, aplicando el mismo backoff.
+
+### Ejemplo de código (TypeScript / React)
+
+Tipos del contrato (espejo del evento de la §2; `snake_case` en claves JSON):
+
+```ts
+// src/actividad/tipos.ts
+export interface EventoReporteCreado {
+  tipo: "reporte_creado";
+  id: string;
+  lat: number;
+  lng: number;
+  creado: string; // RFC 3339
+  horas_duracion: number | null;
+}
+
+export interface EventoActividad {
+  [clave: string]: unknown; // para validar `tipo` antes de confiar en el payload
+}
+```
+
+Hook con conexión única, backoff exponencial + jitter, `offline` de la PWA y tipado estricto de mensajes:
+
+```ts
+// src/actividad/conexion.ts
+const URL_WS = "ws://127.0.0.1:1234/api/v1/actividad/ws";
+const BACKOFF_BASE_MS = 1000;
+const BACKOFF_MAX_MS = 60_000;
+
+type ManejarEvento = (evento: EventoReporteCreado) => void;
+
+function esReporteCreado(datos: unknown): datos is EventoReporteCreado {
+  if (typeof datos !== "object" || datos === null) return false;
+  const e = datos as Record<string, unknown>;
+  return (
+    e.tipo === "reporte_creado" &&
+    typeof e.id === "string" &&
+    typeof e.lat === "number" &&
+    typeof e.lng === "number" &&
+    typeof e.creado === "string" &&
+    (e.horas_duracion === null || typeof e.horas_duracion === "number")
+  );
+}
+
+export function conectarActividad(onReporte: ManejarEvento): () => void {
+  let ws: WebSocket | null = null;
+  let reintento = 0;
+  let cerrado = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const backoff = () => {
+    const base = Math.min(BACKOFF_BASE_MS * 2 ** reintento, BACKOFF_MAX_MS);
+    const conJitter = base / 2 + Math.random() * (base / 2); // evita reconexiones sincronizadas
+    reintento += 1;
+    timer = setTimeout(abrir, conJitter);
+  };
+
+  const abrir = () => {
+    if (cerrado || navigator.onLine === false) {
+      if (!cerrado) timer = setTimeout(abrir, BACKOFF_BASE_MS); // reintentar al volver la red
+      return;
+    }
+    ws = new WebSocket(URL_WS);
+
+    ws.onopen = () => {
+      reintento = 0; // backoff exitoso: volvemos a 1 s
+    };
+
+    ws.onmessage = (mensaje) => {
+      if (typeof mensaje.data !== "string") return; // solo texto
+      let datos: unknown;
+      try {
+        datos = JSON.parse(mensaje.data);
+      } catch {
+        return; // payload corrupto: ignorar
+      }
+      if (esReporteCreado(datos)) onReporte(datos);
+      // tipos desconocidos: se ignoran (evolutivo)
+    };
+
+    ws.onclose = () => {
+      ws = null;
+      if (!cerrado) backoff(); // 429, timeout 60 s o caída de red
+    };
+  };
+
+  const alVolverEnLinea = () => {
+    if (navigator.onLine && !cerrado) {
+      if (timer) clearTimeout(timer);
+      reintento = 0;
+      abrir();
+    }
+  };
+  window.addEventListener("online", alVolverEnLinea);
+
+  abrir();
+
+  return () => {
+    cerrado = true;
+    window.removeEventListener("online", alVolverEnLinea);
+    if (timer) clearTimeout(timer);
+    ws?.close(); // el servidor libera el slot; una sola conexión por app
+  };
+}
+```
+
+Uso en un componente (el estado inicial viene del feed; el WS solo lo incrementa; ante un hueco se reconcilia con `GET /api/v1/reportes`):
+
+```tsx
+// src/componentes/MapaActividad.tsx
+function MapaActividad() {
+  const [reportes, setReportes] = useState<Reporte[]>([]);
+
+  useEffect(() => {
+    // 1. Snapshot inicial (el WS NO envía historial)
+    void fetch("/api/v1/reportes?limit=5000")
+      .then((r) => r.json())
+      .then((d: { reportes: Reporte[] }) => setReportes(d.reportes));
+
+    // 2. Incremento en tiempo real (reconciliar tras reconexiones largas)
+    return conectarActividad((evento) => {
+      setReportes((prev) =>
+        prev.some((r) => r.id === evento.id) ? prev : [...prev, evento],
+      );
+    });
+  }, []);
+
+  return <Heatmap reportes={reportes} />;
+}
+```
+
+Notas del ejemplo: no se envía ningún mensaje (`ws.send` nunca se usa); `Pong` lo responde el `WebSocket` del navegador ante el `Ping` del servidor; la función de retorno del hook cierra la conexión y limpia temporizadores/listeners.
