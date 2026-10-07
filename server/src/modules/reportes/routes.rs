@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::PgPool;
 
+use crate::modules::actividad::domain::EventoActividad;
+use crate::modules::actividad::infra::CanalActividad;
 use crate::modules::reportes::application::{
     ErrorConsulta, ErrorRegistro, ResultadoConsulta, consultar_reportes, registrar_reporte,
 };
@@ -20,11 +22,17 @@ use crate::modules::reportes::domain::{
 };
 use crate::modules::reportes::infra::PostgresRepositorioReportes;
 
-pub fn router(pool: PgPool) -> Router {
+#[derive(Clone)]
+pub(crate) struct EstadoReportes {
+    repositorio: PostgresRepositorioReportes,
+    canal: CanalActividad,
+}
+
+pub fn router(pool: PgPool, canal: CanalActividad) -> Router {
     let repositorio = PostgresRepositorioReportes::new(pool);
     Router::new()
         .route("/api/v1/reportes", get(listar_reportes).post(crear_reporte))
-        .with_state(repositorio)
+        .with_state(EstadoReportes { repositorio, canal })
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,13 +51,13 @@ pub struct RespuestaRegistroReporte {
 }
 
 pub async fn crear_reporte(
-    State(repositorio): State<PostgresRepositorioReportes>,
+    State(estado): State<EstadoReportes>,
     solicitud: Result<Json<SolicitudCrearReporte>, JsonRejection>,
 ) -> Result<(StatusCode, Json<RespuestaRegistroReporte>), ErrorHttp> {
     let Json(solicitud) = solicitud.map_err(ErrorHttp::SolicitudInvalida)?;
 
     let reporte = registrar_reporte(
-        &repositorio,
+        &estado.repositorio,
         &solicitud.id_usuario,
         solicitud.lat,
         solicitud.lng,
@@ -58,22 +66,31 @@ pub async fn crear_reporte(
     .await
     .map_err(ErrorHttp::desde_registro)?;
 
+    let creado = reporte.creado.to_rfc3339();
+    estado.canal.publicar(&EventoActividad::reporte_creado(
+        reporte.id.clone(),
+        reporte.lat,
+        reporte.lng,
+        creado.clone(),
+        reporte.horas_duracion,
+    ));
+
     Ok((
         StatusCode::CREATED,
         Json(RespuestaRegistroReporte {
             id: reporte.id,
-            creado: reporte.creado.to_rfc3339(),
+            creado,
         }),
     ))
 }
 
 pub async fn listar_reportes(
-    State(repositorio): State<PostgresRepositorioReportes>,
+    State(estado): State<EstadoReportes>,
     query: Result<Query<SolicitudConsultarReportes>, QueryRejection>,
 ) -> Result<Json<ResultadoConsulta>, ErrorHttp> {
     let Query(solicitud) = query.map_err(ErrorHttp::ConsultaInvalida)?;
 
-    let resultado = consultar_reportes(&repositorio, &solicitud)
+    let resultado = consultar_reportes(&estado.repositorio, &solicitud)
         .await
         .map_err(ErrorHttp::desde_consulta)?;
 

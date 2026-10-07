@@ -6,6 +6,7 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 
 use crate::config::Config;
+use crate::modules::actividad::{MAX_CONEXIONES_ACTIVIDAD, infra::CanalActividad};
 
 #[tokio::main]
 async fn main() {
@@ -40,9 +41,12 @@ async fn main() {
     let host = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&host).await.unwrap();
 
+    let canal = CanalActividad::nuevo(MAX_CONEXIONES_ACTIVIDAD);
+
     let app = Router::new()
         .route("/api/health", get(|| async { StatusCode::OK }))
-        .merge(modules::reportes::routes::router(pool));
+        .merge(modules::reportes::routes::router(pool, canal.clone()))
+        .merge(modules::actividad::routes::router(canal));
 
     println!("Servidor iniciado en: http://{host}");
     axum::serve(listener, app).await.unwrap();

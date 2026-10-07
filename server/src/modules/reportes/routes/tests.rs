@@ -11,6 +11,8 @@ use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tower::ServiceExt;
 
+use crate::modules::actividad::{MAX_CONEXIONES_ACTIVIDAD, infra::CanalActividad};
+
 use super::router;
 
 async fn pool_de_prueba() -> sqlx::PgPool {
@@ -29,7 +31,8 @@ async fn pool_de_prueba() -> sqlx::PgPool {
 
 async fn aplicacion() -> (sqlx::PgPool, Router) {
     let pool = pool_de_prueba().await;
-    (pool.clone(), router(pool))
+    let canal = CanalActividad::nuevo(MAX_CONEXIONES_ACTIVIDAD);
+    (pool.clone(), router(pool, canal))
 }
 
 fn dispositivo_unico() -> String {
