@@ -1,4 +1,5 @@
 mod config;
+mod cors;
 mod modules;
 
 use axum::{Router, http::StatusCode, routing::get};
@@ -46,7 +47,8 @@ async fn main() {
     let app = Router::new()
         .route("/api/health", get(|| async { StatusCode::OK }))
         .merge(modules::reportes::routes::router(pool, canal.clone()))
-        .merge(modules::actividad::routes::router(canal));
+        .merge(modules::actividad::routes::router(canal))
+        .layer(cors::capa(config.cors_allowed_origin.clone()));
 
     println!("Servidor iniciado en: http://{host}");
     axum::serve(listener, app).await.unwrap();
