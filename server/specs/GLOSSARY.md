@@ -15,3 +15,4 @@ Terminología acordada para nombrar variables, funciones, rutas y tablas de base
 - **evento de actividad:** mensaje JSON emitido por el servidor por cada actividad relevante. Clave `tipo` (discriminador, p. ej. `reporte_creado`) + datos del hecho; nunca incluye `id_usuario`.
 - **canal de actividad:** canal `broadcast` interno (tokio) que distribuye los eventos de actividad a todas las conexiones WS activas, sin filtro geográfico (global). El filtro de mapa lo hace el cliente.
 - **conexión de actividad:** sesión WebSocket de un cliente suscrito al canal. Límite 100 concurrentes; el servidor hace ping cada 30 s y cierra a los 60 s sin actividad. Canal de solo lectura: el cliente no envía mensajes de negocio.
+- **origen permitido:** origen HTTP exacto (esquema + host + puerto) autorizado a consumir la API desde el navegador vía CORS. Se define con la variable de entorno `CORS_ALLOWED_ORIGIN`; por defecto `http://localhost:5173` si no se define.
