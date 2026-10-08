@@ -1,7 +1,8 @@
 
 export type ReporteType = {
-  latitud: number;
-  longitud: number;
-  idUser: number;
-  horas: number
+  id:string
+  lat: number;
+  lng: number;
+  creado: string;
+  horas_duracion: number
 }
