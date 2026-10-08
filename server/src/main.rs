@@ -2,12 +2,26 @@ mod config;
 mod cors;
 mod modules;
 
+use axum::http::{HeaderValue, Method};
 use axum::{Router, http::StatusCode, routing::get};
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 
 use crate::config::Config;
 use crate::modules::actividad::{MAX_CONEXIONES_ACTIVIDAD, infra::CanalActividad};
+
+use tower_http::cors::{Any, CorsLayer};
+
+fn make_cors() -> CorsLayer {
+    CorsLayer::new()
+        // Define el origen exacto de tu frontend
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        // O permite múltiples orígenes específicos si lo necesitas
+        // .allow_origin([ "http://localhost:5173".parse().unwrap(), "https://tudominio.com".parse().unwrap() ])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers(Any)
+}
+
 
 #[tokio::main]
 async fn main() {
@@ -47,8 +61,12 @@ async fn main() {
     let app = Router::new()
         .route("/api/health", get(|| async { StatusCode::OK }))
         .merge(modules::reportes::routes::router(pool, canal.clone()))
+<<<<<<< HEAD
         .merge(modules::actividad::routes::router(canal))
         .layer(cors::capa(config.cors_allowed_origin.clone()));
+=======
+        .merge(modules::actividad::routes::router(canal)).layer(make_cors());
+>>>>>>> 14c15d2 (fix: problema de cors)
 
     println!("Servidor iniciado en: http://{host}");
     axum::serve(listener, app).await.unwrap();
