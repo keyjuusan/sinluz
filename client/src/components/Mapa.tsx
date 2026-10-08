@@ -1,17 +1,17 @@
 // import { ModernHeatmapLayer } from "@/components/ModernHeatmapLayer";
 import { useEffect, useState } from "react";
-import InfoClickMap from "./InfoClickMap";
+// import InfoClickMap from "./InfoClickMap";
 import LeafletMap from "./LeafletMap";
 import { ModernHeatmapLayer } from "./ModernHeatmapLayer";
-import type { ReporteType } from "@/types";
-import { mockReportes } from "@/mocks";
+import type { ReporteResponseType} from "@/types";
+// import { mockReportes } from "@/mocks";
 import { miApi } from "@/lib/axios/api";
 
-const simulacionGetReportes = new Promise<ReporteType[]>((resolve, reject) => {
-  setTimeout(() => {
-    resolve(mockReportes);
-  }, 1000);
-});
+// const simulacionGetReportes = new Promise<ReporteType[]>((resolve, reject) => {
+//   setTimeout(() => {
+//     resolve(mockReportes);
+//   }, 1000);
+// });
 
 export default function Mapa() {
   // 1. Modificamos el tipo del estado para soportar [lat, lng, intensidad?]
@@ -20,12 +20,7 @@ export default function Mapa() {
 
   useEffect(() => {
     miApi
-      .get<{
-        reportes: ReporteType[];
-        total: number;
-        limit: number;
-        offset: number;
-      }>("/reportes")
+      .get<ReporteResponseType>("/reportes")
       .then(({ data: { reportes } }) => {
         // 2. Mapeamos calculando la intensidad basada en el tiempo sin luz
         const coordenadas = reportes.map((reporte) => {

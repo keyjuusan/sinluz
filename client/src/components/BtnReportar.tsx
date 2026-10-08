@@ -1,9 +1,11 @@
 import { useState, type ComponentProps } from "react";
 import { Ripple } from "./loading-ui/ripple";
-import type { ReporteType } from "@/types";
+import type { ReporteRequestType } from "@/types";
+import { miApi } from "@/lib/axios/api";
+import toast from "react-hot-toast";
 
 interface Props extends ComponentProps<"button"> {
-  reporte: ReporteType;
+  reporte: ReporteRequestType;
 }
 
 export default function BtnReportar({
@@ -14,31 +16,34 @@ export default function BtnReportar({
 }: Props) {
   const [loading, setLoading] = useState(false);
 
-  function reportarApagon(datosReporte: ReporteType) {
+  function reportarApagon(datosReporte: ReporteRequestType) {
     setLoading(true);
 
-    const simularPeticion = new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (true) {
-
-          resolve("chevere");
-          return;
-        }
-        reject("no tan chevere");
-      }, 2000);
-    });
-    simularPeticion
-      .then((res) => console.log(res))
-      .catch((e) => console.error(e))
-      .finally(() => setLoading(false));
-
-    // miApi
-    //   .post("/reporte/", datosReporte)
-    //   .then(() => {
-    //     console.log("reporte registrado!");
-    //   })
-    //   .catch((e) => console.error("No se pudo registrar el reporte:", e))
-    //   .finally(() => setLoading(false));
+    //     const simularPeticion = new Promise((resolve, reject) => {
+    //       setTimeout(() => {
+    //         if (true) {
+    //
+    //           resolve("chevere");
+    //           return;
+    //         }
+    //         reject("no tan chevere");
+    //       }, 2000);
+    //     });
+    //     simularPeticion
+    //       .then((res) => console.log(res))
+    //       .catch((e) => console.error(e))
+    //       .finally(() => setLoading(false));
+    toast.promise(
+      miApi
+        .post("/reportes", datosReporte)
+        .finally(() => setLoading(false)),
+      {
+        success:
+          "Reportado exitosamente! Le invitamos a cosultar todos los reportes",
+        error: (err) => err.response?.data?.error ?? err.message,
+        loading: "Enviando reporte...",
+      },
+    );
   }
   return (
     <button
