@@ -16,8 +16,30 @@ export default function BtnReportar({
 }: Props) {
   const [loading, setLoading] = useState(false);
 
-  function reportarApagon(datosReporte: ReporteRequestType) {
+  function reportarApagon() {
     setLoading(true);
+
+    navigator.geolocation.getCurrentPosition((position) => {
+      const datosReporte: ReporteRequestType = {
+        horas_duracion: 8,
+        id_usuario: "usuarioo",
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      }
+
+      toast.promise(
+        miApi
+          .post("/reportes", datosReporte)
+          .finally(() => setLoading(false)),
+        {
+          success:
+            "Reportado exitosamente! Le invitamos a cosultar todos los reportes",
+          error: (err) => err.response?.data?.error ?? err.message,
+          loading: "Enviando reporte...",
+        },
+      );
+    })
+
 
     //     const simularPeticion = new Promise((resolve, reject) => {
     //       setTimeout(() => {
@@ -33,17 +55,7 @@ export default function BtnReportar({
     //       .then((res) => console.log(res))
     //       .catch((e) => console.error(e))
     //       .finally(() => setLoading(false));
-    toast.promise(
-      miApi
-        .post("/reportes", datosReporte)
-        .finally(() => setLoading(false)),
-      {
-        success:
-          "Reportado exitosamente! Le invitamos a cosultar todos los reportes",
-        error: (err) => err.response?.data?.error ?? err.message,
-        loading: "Enviando reporte...",
-      },
-    );
+
   }
   return (
     <button

@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: ["designed-reel-positions-everyone.trycloudflare.com"]
+    allowedHosts: ["entertainment-subcommittee-clothes-yellow.trycloudflare.com"]
   },
   resolve: {
       alias: {

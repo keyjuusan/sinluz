@@ -61,12 +61,7 @@ async fn main() {
     let app = Router::new()
         .route("/api/health", get(|| async { StatusCode::OK }))
         .merge(modules::reportes::routes::router(pool, canal.clone()))
-<<<<<<< HEAD
-        .merge(modules::actividad::routes::router(canal))
-        .layer(cors::capa(config.cors_allowed_origin.clone()));
-=======
         .merge(modules::actividad::routes::router(canal)).layer(make_cors());
->>>>>>> 14c15d2 (fix: problema de cors)
 
     println!("Servidor iniciado en: http://{host}");
     axum::serve(listener, app).await.unwrap();
